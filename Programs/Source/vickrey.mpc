@@ -8,7 +8,7 @@ r = re.search('(\D*)(\d*)', program.name)
 if r.group(2):
     n_inputs = int(r.group(2))
 else:
-    n_inputs = 100
+    n_inputs = 6
 
 n_parties = 2
 n_threads = int(math.ceil(2 ** (int(math.log(n_inputs, 2) - 7))))
@@ -26,13 +26,32 @@ print_ln('n_inputs = %s, n_parties = %s, n_threads = %s, n_loops = %s, '
 
 @for_range(n_loops)
 def f(_):
-    Bid = types.getNamedTupleType('party', 'price')
+    Bid = types.getNamedTupleType('party', 'price', 'target')
     bids = Bid.get_array(n_inputs, value_type)
 
+    Bid_cp = types.getNamedTupleType('party', 'price', 'target')
+    bids_cp = Bid.get_array(n_inputs, value_type)
+
+
     for i in range(n_inputs):
-        # i * 10 because inputs are all zero by default
-        bids[i] = Bid(i, value_type.get_raw_input_from(i % n_parties) + i * 10)
-        #bids = [Bid(i, value_type(i * 10)) for i in range(n_parties)]
+        bids[i] = Bid(i, value_type.get_input_from(i % n_parties), value_type.get_input_from(i % n_parties))
+        # bids[i] = Bid(i, value_type.get_input_from(i), value_type.get_input_from(i))
+        print_ln("bidder %s bid %s target %s", i, bids[i].price.reveal(), bids[i].target.reveal())
+        # print_ln("type:%s",bids[i].price)
+        bids_cp[i] = bids[i]
+    
+    # adjustment phase
+    for i in bids:
+        original_price = i.price
+        greater_flag = i.price > bids_cp[i.target.reveal()].price
+        i.price = greater_flag.if_else(bids_cp[i.target.reveal()].price, i.price)
+
+        smaller_flag = i.price < bids_cp[i.target.reveal()].price
+        # i.price = smaller_flag.if_else(i.price+(bids_cp[i.target.reveal()].price - i.price).int_div(sint.hard_conv(2)), i.price)
+        i.price = smaller_flag.if_else(i.price+regint.hard_conv(bids_cp[i.target.reveal()].price.reveal() - i.price.reveal()).__floordiv__(2), i.price)
+
+        print_ln("after adjustment phase!")
+        print_ln("bidder %s bid %s target %s", i, i.price.reveal(), i.target.reveal())
 
     def bid_sort(a, b):
         comp = a.price < b.price
@@ -40,6 +59,7 @@ def f(_):
         for i in res:
             i.price = value_type.hard_conv(i.price)
         return res
+
 
     def first_and_second(left, right):
         top = left[0].price < right[0].price
