@@ -1,8 +1,10 @@
 import util
 from Compiler import types
+from Compiler.library import sort
 
 import math
 import re
+import random
 r = re.search('(\D*)(\d*)', program.name)
 
 if r.group(2):
@@ -32,6 +34,7 @@ def f(_):
     Bid_cp = types.getNamedTupleType('party', 'price', 'target')
     bids_cp = Bid.get_array(n_inputs, value_type)
 
+    price_list = Array(n_inputs, regint)
 
     for i in range(n_inputs):
         bids[i] = Bid(i, value_type.get_input_from(i % n_parties), value_type.get_input_from(i % n_parties))
@@ -41,6 +44,7 @@ def f(_):
         bids_cp[i] = bids[i]
     
     # adjustment phase
+    counter = 0
     for i in bids:
         original_price = i.price
         greater_flag = i.price > bids_cp[i.target.reveal()].price
@@ -49,9 +53,96 @@ def f(_):
         smaller_flag = i.price < bids_cp[i.target.reveal()].price
         # i.price = smaller_flag.if_else(i.price+(bids_cp[i.target.reveal()].price - i.price).int_div(sint.hard_conv(2)), i.price)
         i.price = smaller_flag.if_else(i.price+regint.hard_conv(bids_cp[i.target.reveal()].price.reveal() - i.price.reveal()).__floordiv__(2), i.price)
+        bids[counter] = Bid(counter, i.price, i.target)
+        price_list[counter] = regint.hard_conv(i.price.reveal())
+        counter += 1
 
         print_ln("after adjustment phase!")
         print_ln("bidder %s bid %s target %s", i, i.price.reveal(), i.target.reveal())
+    
+    # print_ln("GGGGGGGGGGGGGGGGGGGGG")
+    # for i in bids:
+    #     print_ln("bidder %s bid %s target %s", i, i.price.reveal(), i.target.reveal())
+    # for i in price_list:
+    #     print_ln("price:%s",i.reveal())
+    
+    # quick select 3rd largest price
+    
+    # def quickselect_helper(bids, l,r):
+    #     pivot_index = random.randint(l,r)
+    #     pivot = bids[pivot_index]
+    #     bids[pivot_index], bids[r] = bids[r], bids[pivot_index]
+    #     storeIndex = l
+    #     for i in range(l,r):
+    #         flag = bids[i].price < pivot.price
+    #         original_bid = bids[i]
+    #         bids[i] = flag.if_else(bids[storeIndex], bids[i])
+    #         bids[storeIndex] = flag.if_else(original_bid, bids[storeIndex])
+    #         storeIndex = flag.if_else(storeIndex+1,storeIndex)
+    #     bids[r], bids[storeIndex] = bids[storeIndex], bids[r]
+
+    #     return storeIndex
+    # l = 0
+    # r = n_inputs-1
+    # k = 2
+    # third_price = 0
+    # while l<=r:
+    #     mid = quickselect_helper(bids, l,r)
+    #     if mid == k:
+    #         third_price = bids[mid].price.reveal()
+    #         break
+    #     if mid < k:
+    #         l = mid+1
+    #     else:
+    #         r = mid-1
+    # print_ln("third largest price is:%s", third_price)
+
+
+    # def quickselect_helper(l,r):
+    #     pivot_index = random.randint(l,r)
+    #     pivot = price_list[pivot_index]
+    #     price_list[pivot_index], price_list[r] = price_list[r], price_list[pivot_index]
+    #     storeIndex = l
+    #     for i in range(l,r):
+    #         flag = price_list[i] < pivot
+    #         original_bid = price_list[i]
+    #         price_list[i] = flag.if_else(price_list[storeIndex], price_list[i])
+    #         price_list[storeIndex] = flag.if_else(original_bid, price_list[storeIndex])
+    #         storeIndex = flag.if_else(storeIndex+1,storeIndex)
+    #     price_list[r], price_list[storeIndex] = price_list[storeIndex], price_list[r]
+    #     return storeIndex
+    
+    # def quickselect():
+    #     l = 0
+    #     r = n_inputs-1
+    #     k = 2
+    #     third_price = 0
+    #     @do_while
+    #     def quickselect_loop():
+    #         mid = quickselect_helper(l,r)
+    #         # if mid.__eq__(k):
+    #         #     third_price = price_list[mid].reveal()
+    #         #     break
+    #         eq_flag = mid.__eq__(k)
+    #         third_price = eq_flag.if_else(price_list[mid].reveal(), third_price)
+    #         # if mid < k:
+    #         #     l = mid+1
+    #         # else:
+    #         #     r = mid-1
+    #         small_flag = mid.__lt__(k)
+    #         l = small_flag.if_else(mid+1,l)
+    #         great_flag = mid.__gt__(k)
+    #         r = great_flag.if_else(mid-1,r)
+    #         return l.__ne__(r)
+    #     print_ln("third largest price is:%s", third_price)
+    # quickselect()
+    
+    # very stupid library sort!
+    price_list = sort(price_list)
+    # for i in price_list:
+    #     print_ln("price after sort:%s",i.reveal())
+    third_price = price_list[n_inputs-3]
+
 
     def bid_sort(a, b):
         comp = a.price < b.price
@@ -92,4 +183,7 @@ def f(_):
     tuples = [(results[2*i], results[2*i+1]) for i in range(n_threads)]
     first, second = util.tree_reduce(first_and_second, tuples)
 
-    print_ln('Winner: %s, price: %s', first.party.reveal(), second.price.reveal())
+    # gap rule
+
+
+    # print_ln('Winner: %s, price: %s', first.party.reveal(), second.price.reveal())
