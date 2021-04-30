@@ -184,6 +184,20 @@ def f(_):
     first, second = util.tree_reduce(first_and_second, tuples)
 
     # gap rule
+    # gap_greater_flag = (first.price-second.price) >= (second.price-sint.hard_conv(third_price))
+    # print_ln("%s",gap_greater_flag.reveal())
+    # gap_fewer_flag = (first.price-second.price) < (second.price-sint.hard_conv(third_price))
+    @if_e( ((first.price-second.price) >= (second.price-sint.hard_conv(third_price))).reveal() )
+    def greater():
+        print_ln("greater case:")
+        print_ln("Winner: %s, price: %s", first.party.reveal(), second.price.reveal())
+    
+    @else_
+    def fewer():
+        print_ln("fewer case:")
+        print_ln("Winner: %s, price: %s", second.party.reveal(), third_price)
+
+
 
 
     # print_ln('Winner: %s, price: %s', first.party.reveal(), second.price.reveal())
