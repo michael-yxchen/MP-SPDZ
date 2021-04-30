@@ -1,0 +1,88 @@
+import util
+from Compiler import types
+
+import math
+import re
+import random
+r = re.search('(\D*)(\d*)', program.name)
+
+if r.group(2):
+    n_inputs = int(r.group(2))
+else:
+    n_inputs = 4
+
+n_parties = 4
+n_threads = int(math.ceil(2 ** (int(math.log(n_inputs, 2) - 7))))
+n_loops = 1
+n_bits = 64
+#value_type = types.get_sgf2nuint(n_bits)
+value_type = sint
+sint_max = 10000000
+
+program.set_bit_length(n_bits)
+program.set_security(40)
+
+print_ln('n_inputs = %s, n_parties = %s, n_threads = %s, n_loops = %s, '
+         'value_type = %s',
+         n_inputs, n_parties, n_threads, n_loops, value_type.__name__)
+
+@for_range(n_loops)
+def f(_):
+    Bid = types.getNamedTupleType('party', 'price', 'target')
+    bids = Bid.get_array(n_inputs, value_type)
+    bids_adj = Bid.get_array(n_inputs, value_type)
+
+    for i in range(n_inputs):
+        bids[i] = Bid(i, value_type.get_input_from(i), value_type.get_input_from(i))
+        print_ln("bidder %s bid %s target %s", i, bids[i].price.reveal(), bids[i].target.reveal())
+    
+    # adjustment phase
+    print_ln("after adjustment phase!")
+    def thread():
+        i = get_arg()
+        # adjust the price for bidder i
+        cur_tgt = bids[i].target
+        beta_bar = sint.hard_conv(sint_max)
+        for it in range(n_inputs):
+            for j in range(n_inputs):
+                is_tgt = (cur_tgt == j)
+                smaller = beta_bar.min(bids[j].price)
+                beta_bar = is_tgt.if_else(smaller, beta_bar)
+                cur_tgt = is_tgt.if_else(bids[j].target, cur_tgt)
+        
+        adjusted_price = (beta_bar <= bids[i].price).if_else(beta_bar, (beta_bar + bids[i].price)>>1)
+        bids_adj[i] = Bid(i, adjusted_price, bids[i].target)
+        print_ln("bidder %s bid %s target %s", i,adjusted_price.reveal(), bids[i].target.reveal())
+        print_ln("adjusted price %s beta_bar %s", adjusted_price.reveal(), beta_bar.reveal())
+            
+    tape = program.new_tape(thread)
+    threads = [program.run_tape(tape, i) for i in range(n_inputs)]
+    for i in threads:
+        program.join_tape(i)
+
+    def bubble_sort(a):
+        res = a
+        for i in range(n_inputs - 1):
+            for j in range(n_inputs-i-1):
+                comp = res[j].price < res[j+1].price
+                res[j], res[j+1] = util.cond_swap(comp, res[j], res[j+1])
+        return res
+    # very stupid library sort!
+    bids_sorted = bubble_sort(bids_adj)
+    first = bids_sorted[0]
+    second = bids_sorted[1]
+    third = bids_sorted[2]
+    print_ln("price sort done")
+    print_ln("first price: %s", first.price.reveal())
+    print_ln("second price: %s", second.price.reveal())
+    print_ln("third price: %s", third.price.reveal())
+
+    @if_e( ((first.price-second.price).reveal() >= (second.price-third.price)).reveal() )
+    def greater():
+        print_ln("greater case:")
+        print_ln("Winner: %s, price: %s", first.party.reveal(), second.price.reveal())
+    
+    @else_
+    def fewer():
+        print_ln("fewer case:")
+        print_ln("Winner: %s, price: %s", second.party.reveal(), third.price.reveal())
