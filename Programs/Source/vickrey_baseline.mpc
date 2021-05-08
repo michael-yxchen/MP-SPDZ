@@ -8,12 +8,12 @@ r = re.search('(\D*)(\d*)', program.name)
 if r.group(2):
     n_inputs = int(r.group(2))
 else:
-    n_inputs = 16
+    n_inputs = 11
 
-n_parties = 16
+n_parties = n_inputs
 n_threads = int(math.ceil(2 ** (int(math.log(n_inputs, 2) - 7))))
 n_loops = 1
-n_bits = 64
+n_bits = 32
 #value_type = types.get_sgf2nuint(n_bits)
 value_type = sint
 
