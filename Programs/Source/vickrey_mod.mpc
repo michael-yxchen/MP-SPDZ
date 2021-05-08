@@ -9,10 +9,11 @@ r = re.search('(\D*)(\d*)', program.name)
 if r.group(2):
     n_inputs = int(r.group(2))
 else:
-    n_inputs = 4
+    n_inputs = 11
 
-n_parties = 4
-n_threads = int(math.ceil(2 ** (int(math.log(n_inputs, 2) - 7))))
+n_parties = n_inputs
+# n_threads = int(math.ceil(2 ** (int(math.log(n_inputs, 2) - 7))))
+n_threads = n_parties
 n_loops = 1
 n_bits = 64
 #value_type = types.get_sgf2nuint(n_bits)
@@ -52,11 +53,11 @@ def f(_):
         
         adjusted_price = (beta_bar <= bids[i].price).if_else(beta_bar, (beta_bar + bids[i].price)>>1)
         bids_adj[i] = Bid(i, adjusted_price, bids[i].target)
-        print_ln("bidder %s bid %s target %s", i,adjusted_price.reveal(), bids[i].target.reveal())
-        print_ln("adjusted price %s beta_bar %s", adjusted_price.reveal(), beta_bar.reveal())
+        # print_ln("bidder %s bid %s target %s", i,adjusted_price.reveal(), bids[i].target.reveal())
+        # print_ln("adjusted price %s beta_bar %s", adjusted_price.reveal(), beta_bar.reveal())
             
     tape = program.new_tape(thread)
-    threads = [program.run_tape(tape, i) for i in range(n_inputs)]
+    threads = [program.run_tape(tape, i) for i in range(n_threads)]
     for i in threads:
         program.join_tape(i)
 
